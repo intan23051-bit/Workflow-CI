@@ -1,0 +1,1 @@
+pandas==2.1.4echo numpy==1.26.2echo scikit-learn==1.3.2echo mlflow==2.19.0echo matplotlib==3.8.2echo seaborn==0.13.0
