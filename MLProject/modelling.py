@@ -1,27 +1,43 @@
 """
-Basic Model Training with MLflow Autolog
+Heart Disease Classification with MLflow
 Author: Intan
-Dataset: Heart Disease Classification
+Dataset: Heart Disease
 """
+
+import setuptools  
+import mlflow
+import mlflow.sklearn
+import os
+
+mlflow.sklearn.autolog()
 
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
-import mlflow
-import mlflow.sklearn
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import warnings
+
 warnings.filterwarnings('ignore')
 
-# MLflow Configuration
-mlflow.set_tracking_uri("http://127.0.0.1:5000")
+# MLflow Configuration 
+# Set tracking URI based on environment
+if os.getenv('GITHUB_ACTIONS'):
+    # Running in GitHub Actions - use local file tracking
+    mlflow.set_tracking_uri("file:./mlruns")
+    print("Running in GitHub Actions - using local file tracking")
+else:
+    # Running locally - use tracking server or local files
+    mlflow.set_tracking_uri("file:./mlruns")
+    print("Running locally - using local file tracking")
+
+# Set experiment
 mlflow.set_experiment("heart-disease-classification")
 
-# Enable autolog
-mlflow.sklearn.autolog()
-
 def load_preprocessed_data():
-    print("Loading preprocessed data")
+    """Load preprocessed dataset"""
+    print("\n" + "="*60)
+    print("LOADING PREPROCESSED DATA")
+    print("="*60)
     
     X_train = pd.read_csv('dataset_preprocessing/X_train_preprocessed.csv')
     X_test = pd.read_csv('dataset_preprocessing/X_test_preprocessed.csv')
@@ -31,13 +47,29 @@ def load_preprocessed_data():
     print(f"Data loaded successfully!")
     print(f"   Training set: {X_train.shape}")
     print(f"   Test set: {X_test.shape}")
+    print(f"   Features: {X_train.columns.tolist()}")
+    
+    # Handle any NaN or inf values
+    for col in X_train.columns:
+        if X_train[col].dtype in ['float64', 'int64']:
+            X_train[col] = X_train[col].replace([np.inf, -np.inf], np.nan)
+            X_test[col] = X_test[col].replace([np.inf, -np.inf], np.nan)
+            
+            if X_train[col].isnull().any():
+                mean_val = X_train[col].mean()
+                X_train[col] = X_train[col].fillna(mean_val)
+                X_test[col] = X_test[col].fillna(mean_val)
+                print(f"Filled NaN in '{col}' with mean ({mean_val:.2f})")
     
     return X_train, X_test, y_train, y_test
 
-def train_model(X_train, y_train):
-    """Train Random Forest model"""
-    print("\nTraining Random Forest model")
+def train_model(X_train, y_train, X_test, y_test):
+    """Train Random Forest model with MLflow autolog"""
+    print("\n" + "="*60)
+    print("TRAINING RANDOM FOREST MODEL")
+    print("="*60)
     
+    # Model configuration
     model = RandomForestClassifier(
         n_estimators=100,
         max_depth=10,
@@ -47,65 +79,53 @@ def train_model(X_train, y_train):
         n_jobs=-1
     )
     
+    print("Training model...")
     model.fit(X_train, y_train)
-    print("Model trained successfully!")
     
-    return model
-
-def evaluate_model(model, X_test, y_test):
-    """Evaluate model performance"""
-    print("\nEvaluating model")
-    
+    # Make predictions
     y_pred = model.predict(X_test)
-    y_pred_proba = model.predict_proba(X_test)[:, 1]
     
+    # Calculate metrics
     accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred)
-    recall = recall_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
-    roc_auc = roc_auc_score(y_test, y_pred_proba)
+    precision = precision_score(y_test, y_pred, average='binary', zero_division=0)
+    recall = recall_score(y_test, y_pred, average='binary', zero_division=0)
+    f1 = f1_score(y_test, y_pred, average='binary', zero_division=0)
     
-    print("\n" + "="*50)
+    print("\n" + "="*60)
     print("MODEL EVALUATION RESULTS")
-    print("="*50)
+    print("="*60)
     print(f"Accuracy  : {accuracy:.4f}")
     print(f"Precision : {precision:.4f}")
     print(f"Recall    : {recall:.4f}")
     print(f"F1 Score  : {f1:.4f}")
-    print(f"ROC AUC   : {roc_auc:.4f}")
-    print("="*50)
+    print("="*60)
     
-    return {
-        'accuracy': accuracy,
-        'precision': precision,
-        'recall': recall,
-        'f1_score': f1,
-        'roc_auc': roc_auc
-    }
+    # Log additional metrics manually
+    mlflow.log_metric("accuracy", accuracy)
+    mlflow.log_metric("precision", precision)
+    mlflow.log_metric("recall", recall)
+    mlflow.log_metric("f1_score", f1)
+    
+    print("\nModel training completed successfully!")
+    print(f"View results at: {mlflow.get_tracking_uri()}")
+    
+    return model, accuracy
 
 def main():
     """Main training pipeline"""
-    print("="*70)
+    print("\n" + "="*70)
     print("HEART DISEASE CLASSIFICATION - MODEL TRAINING")
     print("="*70)
     
     # Load data
     X_train, X_test, y_train, y_test = load_preprocessed_data()
     
-    # Start MLflow run
-    with mlflow.start_run(run_name="random-forest-basic"):
-        print("\nMLflow run started")
-        
-        # Train model
-        model = train_model(X_train, y_train)
-        
-        # Evaluate model
-        metrics = evaluate_model(model, X_test, y_test)
-        
-        print("\nModel and metrics logged to MLflow")
-        print(f"View results at: {mlflow.get_tracking_uri()}")
+    # Train model (autolog will handle MLflow run automatically)
+    model, accuracy = train_model(X_train, y_train, X_test, y_test)
     
-    print("\nTraining completed successfully!")
+    print("\n" + "="*70)
+    print("TRAINING PIPELINE COMPLETED!")
+    print("="*70)
 
 if __name__ == "__main__":
     main()
