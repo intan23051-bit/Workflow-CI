@@ -43,42 +43,40 @@ def load_preprocessed_data():
     return X_train, X_test, y_train, y_test
 
 def train_model(X_train, y_train, X_test, y_test, n_estimators, max_depth, min_samples_split, min_samples_leaf, random_state):
-    """Train Random Forest model dengan parameter dari MLproject"""
+    """Train Random Forest model - Tanpa start_run eksplisit agar tidak konflik dengan MLflow CLI"""
     print("\n" + "="*60)
     print("TRAINING RANDOM FOREST MODEL")
     print("="*60)
     
+    # Aktifkan autologging sebelum proses training
     mlflow.sklearn.autolog()
     
-    with mlflow.start_run():
-        model = RandomForestClassifier(
-            n_estimators=n_estimators,
-            max_depth=max_depth,
-            min_samples_split=min_samples_split,
-            min_samples_leaf=min_samples_leaf,
-            random_state=random_state, # Sekarang sudah sinkron
-            n_jobs=-1
-        )
-        
-        print(f"Training with: n_estimators={n_estimators}, max_depth={max_depth}, random_state={random_state}")
-        model.fit(X_train, y_train)
-        
-        y_pred = model.predict(X_test)
-        
-        # Kalkulasi Metrik
-        accuracy = accuracy_score(y_test, y_pred)
-        precision = precision_score(y_test, y_pred, average='binary', zero_division=0)
-        recall = recall_score(y_test, y_pred, average='binary', zero_division=0)
-        f1 = f1_score(y_test, y_pred, average='binary', zero_division=0)
-        
-        # Log Metrik secara manual ke MLflow
-        mlflow.log_metric("accuracy", accuracy)
-        mlflow.log_metric("precision", precision)
-        mlflow.log_metric("recall", recall)
-        mlflow.log_metric("f1_score", f1)
-        
-        print(f"Model Accuracy: {accuracy:.4f}")
-        return model, accuracy
+    # Inisialisasi model dengan parameter dari argparse
+    model = RandomForestClassifier(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        min_samples_split=min_samples_split,
+        min_samples_leaf=min_samples_leaf,
+        random_state=random_state,
+        n_jobs=-1
+    )
+    
+    print(f"Training with: n_estimators={n_estimators}, max_depth={max_depth}, random_state={random_state}")
+    model.fit(X_train, y_train)
+    
+    # Prediksi
+    y_pred = model.predict(X_test)
+    
+    # Kalkulasi Metrik
+    accuracy = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred, average='binary', zero_division=0)
+    
+    # Log Metrik secara manual (opsional karena autolog sudah mencatatnya)
+    mlflow.log_metric("accuracy_manual", accuracy)
+    mlflow.log_metric("f1_score_manual", f1)
+    
+    print(f"Model Accuracy: {accuracy:.4f}")
+    return model, accuracy
 
 def main():
     """Main pipeline dengan Argparse untuk menangkap parameter dari MLproject"""
@@ -87,13 +85,13 @@ def main():
     parser.add_argument("--max_depth", type=int, default=10)
     parser.add_argument("--min_samples_split", type=int, default=5)
     parser.add_argument("--min_samples_leaf", type=int, default=2)
-    parser.add_argument("--random_state", type=int, default=42) 
+    parser.add_argument("--random_state", type=int, default=42)
     args = parser.parse_args()
 
     # Load data
     X_train, X_test, y_train, y_test = load_preprocessed_data()
     
-    # training
+    # Jalankan training (MLflow run dikelola oleh MLflow CLI/MLProject)
     train_model(
         X_train, y_train, X_test, y_test,
         n_estimators=args.n_estimators,
