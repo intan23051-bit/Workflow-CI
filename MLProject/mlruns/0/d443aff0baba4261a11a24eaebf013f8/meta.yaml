@@ -1,0 +1,15 @@
+artifact_uri: file:///home/runner/work/Workflow-CI/Workflow-CI/MLProject/mlruns/0/d443aff0baba4261a11a24eaebf013f8/artifacts
+end_time: 1763348429576
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: d443aff0baba4261a11a24eaebf013f8
+run_name: fortunate-whale-155
+run_uuid: d443aff0baba4261a11a24eaebf013f8
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1763348426542
+status: 3
+tags: []
+user_id: runner
